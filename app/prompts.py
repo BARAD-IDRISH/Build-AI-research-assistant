@@ -71,3 +71,61 @@ The report should be factual, concise, and based on the provided web sources.
 """
 
     return prompt
+
+"-----------------------------------------------------------------------------------------------------------------------------"
+"-----------------------------------------------------------------------------------------------------------------------------"
+"-----------------------------------------------------------------------------------------------------------------------------"
+"-----------------------------------------------------------------------------------------------------------------------------"
+"-----------------------------------------------------------------------------------------------------------------------------"
+"-----------------------------------------------------------------------------------------------------------------------------"
+
+def create_rag_prompt(question: str, retrieved_chunks: list) -> str:
+
+    context = ""
+
+    for i, item in enumerate(retrieved_chunks, start=1):
+
+        chunk = item["chunk"]
+
+        context += f"""
+CONTEXT {i}
+
+Source:
+{chunk["source"]}
+
+Page:
+{chunk["page"]}
+
+Content:
+{chunk["text"]}
+
+----------------------------------------
+"""
+
+    return f"""
+You are an AI research assistant.
+
+Answer the user's question using ONLY the provided context.
+
+USER QUESTION:
+
+{question}
+
+CONTEXT:
+
+{context}
+
+IMPORTANT RULES:
+
+1. Do not invent information.
+2. Do not use outside knowledge.
+3. Only answer using the provided context.
+4. If the answer cannot be found in the context, say:
+   "The provided documents do not contain enough information to answer this question."
+5. Keep the answer concise and factual.
+6. Always mention the page number that supports the answer.
+7. If multiple pages support the answer, mention all relevant pages.
+8. Never invent a page number or source.
+9. If the retrieved context is irrelevant or insufficient, do not guess.
+10. Distinguish clearly between facts stated in the document and conclusions derived from those facts.
+"""

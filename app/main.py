@@ -9,6 +9,14 @@ from app.schemas import ResearchReport
 
 from app.search import search_web
 
+from app.indexer import load_index
+
+from app.vector_store import retrieve
+from app.embeddings import create_embedding
+
+from app.prompts import create_rag_prompt
+
+
 load_dotenv()
 api_key=os.getenv("GEMINI_API_KEY")
 
@@ -67,65 +75,134 @@ def research_company(company:str) -> ResearchReport:
 
 
 def main():
-    company=input("Enter the company name: ").strip()
-    if not company:
-        print("Please enter a valid company name.")
-        return
+
+    while True:
+
+        ch = int(
+            input(
+                "\nChoose an option:\n"
+                "1. Research a company\n"
+                "2. Ask a question about a document\n"
+                "3. Exit\n"
+                "Enter your choice (1, 2, or 3): "
+            ).strip()
+        )
+
+        
+        if ch==1:
+            company=input("Enter the company name: ").strip()
+            if not company:
+                print("Please enter a valid company name.")
+                return
+                
+            try:
+                report=research_company(company)
+            except Exception as e:
+                print("An error occurred while generating the research report:", str(e))
+                return
+            
+            print("\nGenerating research report for:", company, "\n")
+            
+            print("="*50)
+            print(f"RESEARCH REPORT FOR {report.company}")
+            print("="*50)
+            
+            
+            print("="*50)
+            print(f"\nIndustry:\n{report.industry}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nSummary:\n{report.summary}\n")
+            print("="*50)
+        
+            print("="*50)
+            print(f"\nProducts / Services:\n{report.products_or_services}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nBusiness Model:\n{report.business_model}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nCompetitors:\n{report.competitors}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nCompetitors Advantages:\n{report.competitive_advantages}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nOpportunities:\n{report.opportunities}\n")
+            print("="*50)
+            
+            print("="*50)
+            print(f"\nRisks:\n{report.risks}\n")
+            print("="*50)
+            
+            print("="*50)
+            print("\nSources:\n")
+            
+            for i, source in enumerate(report.sources, start=1):
+                print(f"[{i}] {source.title}")
+                print(f"    {source.url}")
+                print()
+            
+            print("="*50)
+            
+        elif ch==2:
+            question=input("Enter your question about the document: ").strip()
+            if not question:
+                print("Please enter a valid question.")
+                return
+            
+            try:
+                answer,retrieved=ask_document(question)
+            except Exception as e:
+                print("An error occurred while retrieving the answer:", str(e))
+                return
+            
+            print("\nAnswer:\n", answer)
+            
+            print("\nRetrieved Chunks:")
+            for i, item in enumerate(retrieved, start=1):
+                chunk=item["chunk"]
+                print(f"\nChunk {i}:")
+                print(f"Source: {chunk['source']}")
+                print(f"Page: {chunk['page']}")
+                print(f"Content: {chunk['text'][:500]}...")   
+
+        elif ch==3:
+            print("Exiting the program.")
+            break
+
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.") 
     
-    try:
-        report=research_company(company)
-    except Exception as e:
-        print("An error occurred while generating the research report:", str(e))
-        return
-
-    print("\nGenerating research report for:", company, "\n")
-
-    print("="*50)
-    print(f"RESEARCH REPORT FOR {report.company}")
-    print("="*50)
 
 
-    print("="*50)
-    print(f"\nIndustry:\n{report.industry}\n")
-    print("="*50)
+def ask_document(question:str):
+    index=load_index()
 
-    print("="*50)
-    print(f"\nSummary:\n{report.summary}\n")
-    print("="*50)
+    query_vector=create_embedding(question)
 
-    print("="*50)
-    print(f"\nProducts / Services:\n{report.products_or_services}\n")
-    print("="*50)
+    retrieved=retrieve(
+    query_vector=query_vector,
+    chunks=index,
+    top_k=5
+    )
 
-    print("="*50)
-    print(f"\nBusiness Model:\n{report.business_model}\n")
-    print("="*50)
+    prompt=create_rag_prompt(
+        question=question,
+        retrieved_chunks=retrieved   
+    )
 
-    print("="*50)
-    print(f"\nCompetitors:\n{report.competitors}\n")
-    print("="*50)
+    response=client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+    )
+    return response.text,retrieved
 
-    print("="*50)
-    print(f"\nCompetitors Advantages:\n{report.competitive_advantages}\n")
-    print("="*50)
-
-    print("="*50)
-    print(f"\nOpportunities:\n{report.opportunities}\n")
-    print("="*50)
-
-    print("="*50)
-    print(f"\nRisks:\n{report.risks}\n")
-    print("="*50)
-
-    print("="*50)
-    print("\nSources:\n")
-
-    for i, source in enumerate(report.sources, start=1):
-        print(f"[{i}] {source.title}")
-        print(f"    {source.url}")
-        print()
-
-    print("="*50)
 
 if __name__=="__main__":
     main()
