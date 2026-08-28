@@ -10,3 +10,9 @@ class ResearchReport(BaseModel):
     competitive_advantages:list[str]
     opportunities:list[str]
     risks:list[str]
+    sources:list["Source"]
+
+
+class Source(BaseModel):
+    title:str
+    url:str

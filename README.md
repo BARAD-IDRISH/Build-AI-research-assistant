@@ -1,4 +1,4 @@
-Day01 — Research Assistant
+Build AI research assistant
 ===========================
 
 A small command-line research assistant that generates a structured company research report using a generative model.

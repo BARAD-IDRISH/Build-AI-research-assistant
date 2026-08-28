@@ -7,6 +7,8 @@ from google import genai
 from app.prompts import create_research_prompt
 from app.schemas import ResearchReport
 
+from app.search import search_web
+
 load_dotenv()
 api_key=os.getenv("GEMINI_API_KEY")
 
@@ -24,6 +26,8 @@ response = client.models.generate_content(
 
 print(response.text)'''
 
+'''
+version 1.0
 def research_company(company:str) -> ResearchReport:
    prompt=create_research_prompt(company)
    response=client.models.generate_content(
@@ -35,7 +39,32 @@ def research_company(company:str) -> ResearchReport:
         },
    )
    report=ResearchReport.model_validate_json(response.text)
-   return report
+   return report'''
+
+def research_company(company:str) -> ResearchReport:
+    search_results=search_web(company)
+
+    if not search_results:
+        raise ValueError("No search results found for the company.")
+
+    print(f"Found {len(search_results)} search results for {company}.")
+
+    prompt=create_research_prompt(
+        company,
+        search_results
+        )
+
+    response=client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": ResearchReport.model_json_schema(),
+        },
+    )
+    report=ResearchReport.model_validate_json(response.text)
+    return report
+
 
 def main():
     company=input("Enter the company name: ").strip()
@@ -86,6 +115,16 @@ def main():
 
     print("="*50)
     print(f"\nRisks:\n{report.risks}\n")
+    print("="*50)
+
+    print("="*50)
+    print("\nSources:\n")
+
+    for i, source in enumerate(report.sources, start=1):
+        print(f"[{i}] {source.title}")
+        print(f"    {source.url}")
+        print()
+
     print("="*50)
 
 if __name__=="__main__":
