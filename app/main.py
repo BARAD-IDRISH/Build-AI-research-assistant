@@ -16,6 +16,11 @@ from app.embeddings import create_embedding
 
 from app.prompts import create_rag_prompt
 
+from app.reranker import rerank
+
+
+
+
 
 load_dotenv()
 api_key=os.getenv("GEMINI_API_KEY")
@@ -162,7 +167,7 @@ def main():
                 print("An error occurred while retrieving the answer:", str(e))
                 return
             
-            print("\nAnswer:\n", answer)
+            print("\n"+ answer)
             
             print("\nRetrieved Chunks:")
             for i, item in enumerate(retrieved, start=1):
@@ -184,24 +189,43 @@ def main():
 def ask_document(question:str):
     index=load_index()
 
+    print("Creating query embedding.....")
     query_vector=create_embedding(question)
 
+    print("Searching for relevent chunks...")
     retrieved=retrieve(
-    query_vector=query_vector,
-    chunks=index,
-    top_k=5
+        query_vector=query_vector,
+        chunks=index,
+        top_k=10
     )
+
+    print(f"Retrieved {len(retrieved)} candidate chunks")
+
+    reranked = rerank(
+        query=question,
+        retrieved_chunks=retrieved,
+        top_k=5,
+    )
+
+    print(f"selected {len(reranked)} best chunks")
+
+    if not reranked:
+        return (
+            "The provided documents do not contain enough information "
+            "to answer this question.",
+            []
+        )
 
     prompt=create_rag_prompt(
         question=question,
-        retrieved_chunks=retrieved   
+        retrieved_chunks=reranked   
     )
 
     response=client.models.generate_content(
         model="gemini-3-flash-preview",
         contents=prompt,
     )
-    return response.text,retrieved
+    return response.text,reranked
 
 
 if __name__=="__main__":

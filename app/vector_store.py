@@ -14,7 +14,8 @@ def cosine_similarity(a,b):
 def retrieve(
         query_vector,
         chunks,
-        top_k=5
+        top_k=5,
+        similarity_threshold=0.50
 ):
     scored_chunks=[]
 
@@ -24,15 +25,27 @@ def retrieve(
             query_vector,
             chunk["embedding"]
         )
+        if score >= similarity_threshold:
 
-        scored_chunks.append({
-            "chunk": chunk,
-            "score": score
-        })
+            scored_chunks.append({
+                "chunk": chunk,
+                "score": score
+            })
 
     scored_chunks.sort(
         key=lambda x: x["score"],
         reverse=True
     )
+
+    print(f"Retrieved {len(scored_chunks[:top_k])} relevant chunks")
+
+    for i, item in enumerate(scored_chunks[:top_k], start=1):
+        print(
+            f"Result {i}: "
+            f"score={item['score']:.4f}, "
+            f"page={item['chunk']['page']}"
+        )
+
+    
 
     return scored_chunks[:top_k]

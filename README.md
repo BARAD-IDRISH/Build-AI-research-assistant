@@ -20,7 +20,7 @@ Enter a company name and the app will:
 
 ### Ask questions about a PDF
 
-The app also includes a small RAG (Retrieval-Augmented Generation) workflow. In simple terms, it finds the most relevant parts of a PDF before asking Gemini to answer a question.
+The app includes a smart RAG (Retrieval-Augmented Generation) workflow. In simple terms, it finds the most relevant parts of a PDF before asking Gemini to answer a question.
 
 The workflow is:
 
@@ -29,8 +29,11 @@ The workflow is:
 3. Convert each chunk into a numerical embedding using `all-MiniLM-L6-v2`.
 4. Save the chunks and embeddings in `data/index.json`.
 5. Convert the user's question into an embedding.
-6. Find the five closest chunks using cosine similarity.
-7. Ask Gemini to answer using only those chunks.
+6. **Find the ten closest chunks** using cosine similarity (fast first pass).
+7. **Rerank those ten chunks** using a smarter CrossEncoder model to pick only the best five (quality second pass).
+8. Ask Gemini to answer using only those five best chunks.
+
+**Why reranking?** The first search finds many related chunks, but they may not be the *most relevant*. Reranking acts like a quality filter—it scores each chunk on how well it answers the question, not just how similar it is. This helps Gemini give better answers.
 
 The answer also shows the retrieved source file and page number, so you can check where the information came from.
 
@@ -46,8 +49,10 @@ The answer also shows the retrieved source file and page number, so you can chec
 | `app/chunker.py` | Splits page text into overlapping chunks |
 | `app/embeddings.py` | Creates embeddings with Sentence Transformers |
 | `app/indexer.py` | Builds and loads the saved document index |
-| `app/vector_store.py` | Calculates similarity and retrieves relevant chunks |
+| `app/vector_store.py` | Calculates similarity and retrieves relevant chunks with threshold filtering |
+| `app/reranker.py` | Reranks retrieved chunks using CrossEncoder for better relevance scoring |
 | `app/test_retrieval.py` | Prints the most relevant chunks for a test question |
+| `app/test_prompt.py` | Tests prompt creation with sample data |
 
 ## Requirements
 
@@ -123,10 +128,15 @@ python -m app.test_retrieval
 - Company research depends on both `GEMINI_API_KEY` and `TAVILY_API_KEY`.
 - Document questions need an existing `data/index.json` file.
 - The first use of Sentence Transformers may download the `all-MiniLM-L6-v2` model.
+- The first use of CrossEncoder may download the `ms-marco-MiniLM-L-6-v2` reranker model.
+- The app uses a two-stage retrieval process:
+  - **Stage 1**: Fast similarity search returns 10 candidate chunks.
+  - **Stage 2**: Reranker selects the 5 most relevant chunks using a smarter scoring model.
+  - **Filtering**: Chunks with similarity scores below 0.50 are filtered out.
 - The application asks Gemini not to guess and to use only the provided web sources or document context.
 - The current implementation uses the `gemini-3-flash-preview` model for generated answers.
 
 ## Version
 
-This README describes version 3.0, which adds PDF indexing, local embeddings, vector similarity search, and document question answering to the web-based company research assistant.
+This README describes version 4.0, which adds intelligent chunk reranking using CrossEncoder, similarity thresholding, and improved retrieval scoring to provide higher-quality answers from document questions.
 
